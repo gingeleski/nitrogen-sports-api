@@ -55,7 +55,9 @@ class NitrogenApi():
         Logout
         """
         logout_url = BASE_URL + 'php/login/logout.php'
-        self.session.post(logout_url, verify=False)
+        req = self.session.post(logout_url, verify=False)
+        if req.status_code != requests.codes.ok:
+            print("ERROR")
 
     def ping(self):
         """
@@ -107,8 +109,15 @@ class NitrogenApi():
         req = self.session.post(games_url, data=payload, verify=False)
         if req.status_code == requests.codes.ok:
             return req.json()
-        return None
+        else:
+            print("ERROR")
+            return None
 
 # The following is debug/test while developing this API...
 if __name__ == '__main__':
     NITRO_API = NitrogenApi()
+    NITRO_API.login()
+    time.sleep(1)
+    NITRO_API.find_upcoming_games()
+    time.sleep(1)
+    NITRO_API.logout()
