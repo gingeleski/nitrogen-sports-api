@@ -57,7 +57,7 @@ class NitrogenApi():
         logout_url = BASE_URL + 'php/login/logout.php'
         req = self.session.post(logout_url, verify=False)
         if req.status_code != requests.codes.ok:
-            print("ERROR")
+            print('ERROR')
 
     def ping(self):
         """
@@ -110,7 +110,7 @@ class NitrogenApi():
         if req.status_code == requests.codes.ok:
             return req.json()
         else:
-            print("ERROR")
+            print('ERROR')
             return None
 
 # The following is debug/test while developing this API...
