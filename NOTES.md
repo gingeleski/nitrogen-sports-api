@@ -4,6 +4,9 @@ This is all based off HTTP proxy analysis with the site.
 
 ---
 
+4/14/2017 - heartbeat is more complex than anticipated, alternating GET and POST requests
+do more research with an http proxy
+
 https://nitrogensports.eu/socket.io/?EIO=3&transport=polling&t=1491953535092-0
 
 https://nitrogensports.eu/socket.io/?EIO=3&transport=polling&t=1491953535544-1&sid=0l1_Mj0TscLyOAcGAEXU
