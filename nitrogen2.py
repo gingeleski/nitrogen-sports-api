@@ -1,6 +1,11 @@
 import cfscrape
+import json
 import requests
 import time
+
+# Suppress HTTPS warnings
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 BASE_URL = 'https://nitrogensports.eu/'
 PING_URL_START = 'socket.io/?EIO=3&transport=polling'
@@ -10,7 +15,7 @@ class NitrogenApi():
     Interface to programmatically interact with Nitrogen Sports
     """
 
-    def __init__(self):
+    def __init__(self, auto_start_session=True):
         """
         Constructor
         """
@@ -19,20 +24,19 @@ class NitrogenApi():
         self.polling_sid = None
         self.ping_interval = -1
         self.ping_count = 0
+        if auto_start_session is True:
+            self.new_session()
 
-    def session_check(self):
+    def new_session(self):
         """
-        Check for session existence
+        Launch a new session
         """
-        if self.session is None:
-            self.session = cfscrape.CloudflareScraper()
-            self.pass_cloudflare()
+        self.session = cfscrape.CloudflareScraper()
+        self.pass_cloudflare()
 
     def pass_cloudflare(self):
         """
         Complete the Cloudflare check for this session
-
-        TODO
         """
         self.session.get(BASE_URL, verify=False)
 
@@ -40,12 +44,18 @@ class NitrogenApi():
         """
         Login
         """
-        self.session_check()
         username = 'flot989'
         password = 'Thr0wAway1'
         login_url = BASE_URL + 'php/login/login.php'
         payload = {'username': username, 'password': password, 'otp': '', 'captcha_code': ''}
         self.session.post(login_url, data=payload, verify=False)
+
+    def logout(self):
+        """
+        Logout
+        """
+        logout_url = BASE_URL + 'php/login/logout.php'
+        self.session.post(logout_url, verify=False)
 
     def ping(self):
         """
@@ -54,13 +64,15 @@ class NitrogenApi():
         unix_time = int(time.time())
         ping_url = BASE_URL + PING_URL_START + '&t=' + str(unix_time)
         ping_url = ping_url + '-' + str(self.ping_count)
+        req = None
         if self.ping_count == 0:
             req = self.session.get(ping_url, verify=False)
-            poll_info_json = req.json()
+            poll_info_json = json.loads(req.text[req.text.find('{'):])
             self.polling_sid = poll_info_json['sid']
-            self.ping_interval = poll_info_json['pingInterval']
+            self.ping_interval = poll_info_json['pingInterval'] / 1000
         else:
             ping_url = ping_url + '&sid=' + self.polling_sid
+            req = self.session.post(ping_url, verify=False)
         self.ping_count += 1
 
     def keep_alive(self, duration=None):
@@ -71,10 +83,20 @@ class NitrogenApi():
             duration: how long to keep alive, in seconds
         """
         now = int(time.time())
-        start_time = now
+        if duration is not None:
+            end_time = now + duration
+        else:
+            end_time = None
         next_time = now
-        if duration == None or now - start_time > duration:
-            pass  # TODO
+        looping = True
+        while looping is True:
+            if duration is not None and now > end_time:
+                looping = False
+            elif now >= next_time:
+                self.ping()
+                next_time = now + self.ping_interval
+            time.sleep(1)
+            now = int(time.time())
 
     def find_upcoming_games(self, sport='Soccer'):
         """
@@ -90,6 +112,3 @@ class NitrogenApi():
 # The following is debug/test while developing this API...
 if __name__ == '__main__':
     NITRO_API = NitrogenApi()
-    NITRO_API.login()
-    time.sleep(0.5)
-    NITRO_API.ping()
