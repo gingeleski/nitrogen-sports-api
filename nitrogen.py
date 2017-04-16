@@ -31,6 +31,7 @@ class NitrogenApi():
         """
         Launch a new session
         """
+
         self.session = cfscrape.CloudflareScraper()
         self.pass_cloudflare()
 
@@ -38,12 +39,14 @@ class NitrogenApi():
         """
         Complete the Cloudflare check for this session
         """
+
         self.session.get(BASE_URL, verify=False)
 
     def login(self):
         """
         Login
         """
+
         username = 'flot989'
         password = 'Thr0wAway1'
         login_url = BASE_URL + 'php/login/login.php'
@@ -54,6 +57,7 @@ class NitrogenApi():
         """
         Logout
         """
+
         logout_url = BASE_URL + 'php/login/logout.php'
         req = self.session.post(logout_url, verify=False)
         if req.status_code != requests.codes.ok:
@@ -63,6 +67,7 @@ class NitrogenApi():
         """
         Send the server heartbeat / keep-alive / ping
         """
+
         unix_time = int(time.time())
         ping_url = BASE_URL + PING_URL_START + '&t=' + str(unix_time)
         ping_url = ping_url + '-' + str(self.ping_count)
@@ -87,6 +92,7 @@ class NitrogenApi():
         Args:
             duration: how long to keep alive, in seconds
         """
+
         now = int(time.time())
         if duration is not None:
             end_time = now + duration
@@ -107,6 +113,7 @@ class NitrogenApi():
         """
         Get current betslip
         """
+
         get_url = BASE_URL + 'php/query/betslip_get.php'
         req = self.session.post(get_url, verify=False)
         if req.status_code == requests.codes.ok:
@@ -118,6 +125,7 @@ class NitrogenApi():
         """
         Request upcoming games for the given sport
         """
+
         games_url = BASE_URL + 'php/query/findgames_upcomming.php'
         payload = {'sport': sport}
         req = self.session.post(games_url, data=payload, verify=False)
@@ -125,6 +133,7 @@ class NitrogenApi():
             return req.json()
         else:
             raise RuntimeError('Response to #find_upcoming_games not OK')
+
 
 # The following is debug/test while developing this API...
 if __name__ == '__main__':
