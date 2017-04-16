@@ -57,7 +57,7 @@ class NitrogenApi():
         logout_url = BASE_URL + 'php/login/logout.php'
         req = self.session.post(logout_url, verify=False)
         if req.status_code != requests.codes.ok:
-            print('ERROR')
+            raise RuntimeError('Response to #logout not OK')
 
     def ping(self):
         """
@@ -112,8 +112,7 @@ class NitrogenApi():
         if req.status_code == requests.codes.ok:
             return req.json()
         else:
-            print('ERROR')
-            return None
+            raise RuntimeError('Response to #get_betslip not OK')
 
     def find_upcoming_games(self, sport='Soccer'):
         """
@@ -125,8 +124,7 @@ class NitrogenApi():
         if req.status_code == requests.codes.ok:
             return req.json()
         else:
-            print('ERROR')
-            return None
+            raise RuntimeError('Response to #find_upcoming_games not OK')
 
 # The following is debug/test while developing this API...
 if __name__ == '__main__':
