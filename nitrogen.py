@@ -139,12 +139,39 @@ class NitrogenApi():
             raise ValueError('Call to #adjust_risk missing bet_id and/or risk value')
         adjust_url = BASE_URL + 'php/query/betslip_bet_adjustRisk.php'
         payload = {'bet_id': bet_id, 'risk': risk}
-        req = self.session.post(adjust_url, verify=False)
+        req = self.session.post(adjust_url, data=payload, verify=False)
         if req.status_code == requests.codes.ok:
             return req.json()
         else:
             print(req.text)
             raise RuntimeError('Response to #adjust_risk not OK')
+
+    def place_betslip(self):
+        """
+        Place betslip
+        """
+
+        place_url = BASE_URL + 'php/query/betslip_get_place.php'
+        req = self.session.post(place_url, verify=False)
+        if req.status_code == requests.codes.ok:
+            return req.json()
+        else:
+            print(req.text)
+            raise RuntimeError('Response to #place_betslip not OK')
+
+    def confirm_betslip(self, betslip_type='straight'):
+        """
+        Confirm betslip
+        """
+
+        confirm_url = BASE_URL + 'php/query/betslip_confirm.php'
+        payload = {'betslip_type': betslip_type, 'teaser_id': 0, 'coupon_id': ''}
+        req = self.session.post(confirm_url, data=payload, verify=False)
+        if req.status_code == requests.codes.ok:
+            return req.json()
+        else:
+            print(req.text)
+            raise RuntimeError('Response to #confirm_betslip not OK')
 
     def find_upcoming_games(self, sport='Soccer'):
         """
