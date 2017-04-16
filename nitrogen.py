@@ -74,7 +74,10 @@ class NitrogenApi():
             self.ping_interval = poll_info_json['pingInterval'] / 1000
         else:
             ping_url = ping_url + '&sid=' + self.polling_sid
-            req = self.session.post(ping_url, verify=False)
+            if self.ping_count < 3:
+                req = self.session.get(ping_url, verify=False)
+            else:
+                req = self.session.post(ping_url, verify=False)
         self.ping_count += 1
 
     def keep_alive(self, duration=None):
