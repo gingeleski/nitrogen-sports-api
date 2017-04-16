@@ -103,6 +103,18 @@ class NitrogenApi():
             time.sleep(1)
             now = int(time.time())
 
+    def get_betslip(self):
+        """
+        Get current betslip
+        """
+        get_url = BASE_URL + 'php/query/betslip_get.php'
+        req = self.session.post(get_url, verify=False)
+        if req.status_code == requests.codes.ok:
+            return req.json()
+        else:
+            print('ERROR')
+            return None
+
     def find_upcoming_games(self, sport='Soccer'):
         """
         Request upcoming games for the given sport
@@ -121,6 +133,6 @@ if __name__ == '__main__':
     NITRO_API = NitrogenApi()
     NITRO_API.login()
     time.sleep(1)
-    NITRO_API.find_upcoming_games()
+    NITRO_API.get_betslip()
     time.sleep(1)
     NITRO_API.logout()
