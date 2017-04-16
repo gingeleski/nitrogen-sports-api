@@ -121,6 +121,25 @@ class NitrogenApi():
         else:
             raise RuntimeError('Response to #get_betslip not OK')
 
+    def adjust_risk(self, bet_id=None, risk=None):
+        """
+        Adds a wager to the betslip
+
+        Args:
+            bet_id (int): What to wager on
+            risk (float): How much Bitcoin to risk
+        """
+
+        if bet_id is None or risk is None:
+            raise ValueError('Call to #adjust_risk missing bet_id and/or risk value')
+        adjust_url = BASE_URL + 'php/query/betslip_bet_adjustRisk.php'
+        payload = {'bet_id': bet_id, 'risk': risk}
+        req = self.session.post(adjust_url, verify=False)
+        if req.status_code == requests.codes.ok:
+            return req.json()
+        else:
+            raise RuntimeError('Response to #adjust_risk not OK')
+
     def find_upcoming_games(self, sport='Soccer'):
         """
         Request upcoming games for the given sport
