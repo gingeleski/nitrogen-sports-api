@@ -61,6 +61,7 @@ class NitrogenApi():
         logout_url = BASE_URL + 'php/login/logout.php'
         req = self.session.post(logout_url, verify=False)
         if req.status_code != requests.codes.ok:
+            print(req.text)
             raise RuntimeError('Response to #logout not OK')
 
     def ping(self):
@@ -83,6 +84,9 @@ class NitrogenApi():
                 req = self.session.get(ping_url, verify=False)
             else:
                 req = self.session.post(ping_url, verify=False)
+        if req is None or req.status_code != requests.codes.ok:
+            print(req.text)
+            raise RuntimeError('Response to #ping not OK')
         self.ping_count += 1
 
     def keep_alive(self, duration=None):
@@ -119,6 +123,7 @@ class NitrogenApi():
         if req.status_code == requests.codes.ok:
             return req.json()
         else:
+            print(req.text)
             raise RuntimeError('Response to #get_betslip not OK')
 
     def adjust_risk(self, bet_id=None, risk=None):
@@ -138,6 +143,7 @@ class NitrogenApi():
         if req.status_code == requests.codes.ok:
             return req.json()
         else:
+            print(req.text)
             raise RuntimeError('Response to #adjust_risk not OK')
 
     def find_upcoming_games(self, sport='Soccer'):
@@ -151,6 +157,7 @@ class NitrogenApi():
         if req.status_code == requests.codes.ok:
             return req.json()
         else:
+            print(req.text)
             raise RuntimeError('Response to #find_upcoming_games not OK')
 
 
