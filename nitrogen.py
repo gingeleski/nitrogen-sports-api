@@ -20,6 +20,7 @@ class NitrogenApi():
         Constructor
         """
 
+        self.authenticated = False
         self.session = None
         self.polling_sid = None
         self.ping_interval = -1
@@ -51,7 +52,9 @@ class NitrogenApi():
         password = 'Thr0wAway1'
         login_url = BASE_URL + 'php/login/login.php'
         payload = {'username': username, 'password': password, 'otp': '', 'captcha_code': ''}
-        self.session.post(login_url, data=payload, verify=False)
+        req = self.session.post(login_url, data=payload, verify=False)
+        if req.status_code == requests.codes.ok:
+            self.authenticated = True
 
     def logout(self):
         """
@@ -63,6 +66,8 @@ class NitrogenApi():
         if req.status_code != requests.codes.ok:
             print(req.text)
             raise RuntimeError('Response to #logout not OK')
+        else:
+            self.authenticated = False
 
     def ping(self):
         """
