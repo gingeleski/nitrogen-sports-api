@@ -43,13 +43,13 @@ class NitrogenApi():
 
         self.session.get(BASE_URL, verify=False)
 
-    def login(self):
+    def login(self, username=None, password=None):
         """
         Login
         """
 
-        username = 'flot989'
-        password = 'Thr0wAway1'
+        if username is None or password is None:
+            raise ValueError('Call to #login missing username and/or password value')
         login_url = BASE_URL + 'php/login/login.php'
         payload = {'username': username, 'password': password, 'otp': '', 'captcha_code': ''}
         req = self.session.post(login_url, data=payload, verify=False)
@@ -191,13 +191,3 @@ class NitrogenApi():
         else:
             print(req.text)
             raise RuntimeError('Response to #find_upcoming_games not OK')
-
-
-# The following is debug/test while developing this API...
-if __name__ == '__main__':
-    NITRO_API = NitrogenApi()
-    NITRO_API.login()
-    time.sleep(1)
-    NITRO_API.get_betslip()
-    time.sleep(1)
-    NITRO_API.logout()
