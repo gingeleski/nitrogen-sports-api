@@ -48,8 +48,6 @@ class NitrogenApi():
         Login
         """
 
-        if username is None or password is None:
-            raise ValueError('Call to #login missing username and/or password value')
         login_url = BASE_URL + 'php/login/login.php'
         payload = {'username': username, 'password': password, 'otp': '', 'captcha_code': ''}
         req = self.session.post(login_url, data=payload, verify=False)
@@ -161,8 +159,6 @@ class NitrogenApi():
             risk (float): Target Bitcoin risk amount
         """
 
-        if bet_id is None or risk is None:
-            raise ValueError('Call to #adjust_risk missing bet_id and/or risk value')
         adjust_url = BASE_URL + 'php/query/betslip_bet_adjustRisk.php'
         payload = {'bet_id': bet_id, 'risk': risk}
         req = self.session.post(adjust_url, data=payload, verify=False)
