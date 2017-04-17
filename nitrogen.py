@@ -116,6 +116,19 @@ class NitrogenApi():
             time.sleep(1)
             now = int(time.time())
 
+    def get_transactions(self):
+        """
+        Get user's transactions
+        """
+
+        get_url = BASE_URL + 'php/query/getupdates.php?transactions_timestamp='
+        req = self.session.post(get_url, verify=False)
+        if req.status_code == requests.codes.ok:
+            return req.json()
+        else:
+            print(req.text)
+            raise RuntimeError('Response to #get_transactions not OK')
+
     def get_betslip(self):
         """
         Get current betslip
