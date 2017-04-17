@@ -131,13 +131,34 @@ class NitrogenApi():
             print(req.text)
             raise RuntimeError('Response to #get_betslip not OK')
 
-    def adjust_risk(self, bet_id=None, risk=None):
+    def add_bet(self, event_id, period_id, bet_type, bet_id='-1'):
         """
-        Adds a wager to the betslip
+        Adds a bet to the betslip
 
         Args:
-            bet_id (int): What to wager on
-            risk (float): How much Bitcoin to risk
+            event_id (str): Event ID num string (i.e. '711667105')
+            period_id (str): Period ID num string (i.e. '387060156')
+            bet_type (str): Bet type string (i.e. 'moneyline_draw')
+            bet_id (str): Bet ID num string if applicable (default '-1')
+        """
+
+        add_url = BASE_URL + 'php/query/betslip_addBet.php'
+        payload = {'event_id': event_id, 'period_id': period_id, \
+                    'bet_type': bet_type, 'bet_id': bet_id}
+        req = self.session.post(add_url, data=payload, verify=False)
+        if req.status_code == requests.codes.ok:
+            return req.json()
+        else:
+            print(req.text)
+            raise RuntimeError('Response to #add_bet not OK')
+
+    def adjust_risk(self, bet_id=None, risk=None):
+        """
+        Adjusts risk of a bet on the betslip
+
+        Args:
+            bet_id (int): Which bet to adjust
+            risk (float): Target Bitcoin risk amount
         """
 
         if bet_id is None or risk is None:
