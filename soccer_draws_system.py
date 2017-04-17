@@ -27,7 +27,7 @@ if __name__ == '__main__':
     games_json = None
 
     if USE_TEST_DATA is True:
-        with open('test_upcoming_games_json.txt') as data_file:    
+        with open('test_upcoming_games_json.txt') as data_file:
             games_json = json.load(data_file)
     else:
         NITRO_API = NitrogenApi()
