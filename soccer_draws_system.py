@@ -58,9 +58,12 @@ def get_bet_amount(tier_num):
 
     Args:
         tier_num (int)
+
+    Returns:
+        (float) Appropriate bet amount in Bitcoin
     """
 
-    bet_amount = BETTING_UNIT
+    bet_amount = 1 * BETTING_UNIT
     if tier_num >= 2:
         bet_amount *= 2.0
         if tier_num >= 3:
@@ -100,7 +103,6 @@ if __name__ == '__main__':
     games_json = None
     bet_in_progress = False
     current_bet_tier = 1
-    current_bet = 1 * BETTING_UNIT
 
     NITRO_API = NitrogenApi()
     NITRO_API.login(NITROGEN_USERNAME, NITROGEN_PASSWORD)
@@ -111,6 +113,7 @@ if __name__ == '__main__':
     time.sleep(1)
 
     NITRO_API.logout()
+    time.sleep(1)
 
     last_balance = STARTING_BALANCE
 
@@ -124,45 +127,51 @@ if __name__ == '__main__':
                 time.sleep(1)
                 games_json = NITRO_API.find_upcoming_games()
                 time.sleep(1)
-                NITRO_API.logout()
 
                 next_bet = find_next_bet(games_json)
 
-                if next_bet is not None:
+                if next_bet is None:
+                    NITRO_API.logout()
+                    time.sleep(RETRY_WAIT_TIME)
+                else:
                     break
-                    
-                time.sleep(RETRY_WAIT_TIME)
 
-            # TODO next steps
+            # add bet for the indicated event and period
+            res = NITRO_API.add_bet(next_bet['event_id'], next_bet['period_id'], 'moneyline_draw')
+            bet_id = res['data'][0]['bet'][0]['bet_id']
+            time.sleep(1)
 
-            # POST /php/query/betslip_addBet.php HTTP/1.1
-            # event_id=711667105&period_id=387060156&bet_type=moneyline_draw&bet_id=-1
+            # adjust risk to appropriate amount
+            current_bet = get_bet_amount(current_bet_tier)
+            NITRO_API.adjust_risk(bet_id, str(current_bet))
+            time.sleep(1)
 
-            # adjust risk to current_bet
-            # POST /php/query/betslip_bet_adjustRisk.php HTTP/1.1
-            # bet_id=16635862&risk=0.05000
+            NITRO_API.place_betslip()
+            time.sleep(1)
 
-            # POST /php/query/betslip_get_place.php HTTP/1.1
-
-            # POST /php/query/betslip_confirm.php HTTP/1.1
-            # betslip_type=straight&teaser_id=0&coupon_id=
+            NITRO_API.confirm_betslip()
+            time.sleep(1)
 
         else:
+            NITRO_API = NitrogenApi()
+            NITRO_API.login('flot989', 'Thr0wAway1')
+            time.sleep(1)
             TRANSACTION_DUMP = NITRO_API.get_transactions()
             BALANCE = TRANSACTION_DUMP['transactionData']['balance']
             INPLAY = TRANSACTION_DUMP['transactionData']['inplay']
 
+            # TODO handle reset of last_balance
+
             if INPLAY == 0.0:
                 bet_in_progress = False
                 if BALANCE > last_balance:
-                    # Last bet was won
-                    pass  # TODO
-                elif BALANCE == last_balance:
-                    # Last bet was pushed
-                    pass  # TODO
-                else:
-                    # Last bet was lost
-                    pass  # TODO
+                    # win
+                    current_bet_tier = 1
+                elif BALANCE < last_balance:
+                    # loss
+                    current_bet_tier += 1
+
+        NITRO_API.logout()
 
         if continue_betting() is False:
             break
