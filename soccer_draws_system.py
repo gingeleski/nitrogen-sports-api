@@ -152,6 +152,11 @@ if __name__ == '__main__':
             NITRO_API.confirm_betslip()
             time.sleep(1)
 
+            # update last known balance since we've spent money
+            TRANSACTION_DUMP = NITRO_API.get_transactions()
+            last_balance = TRANSACTION_DUMP['transactionData']['balance']
+            time.sleep(1)
+
         else:
             NITRO_API = NitrogenApi()
             NITRO_API.login('flot989', 'Thr0wAway1')
@@ -159,8 +164,6 @@ if __name__ == '__main__':
             TRANSACTION_DUMP = NITRO_API.get_transactions()
             BALANCE = TRANSACTION_DUMP['transactionData']['balance']
             INPLAY = TRANSACTION_DUMP['transactionData']['inplay']
-
-            # TODO handle reset of last_balance
 
             if INPLAY == 0.0:
                 bet_in_progress = False
@@ -170,6 +173,7 @@ if __name__ == '__main__':
                 elif BALANCE < last_balance:
                     # loss
                     current_bet_tier += 1
+                last_balance = BALANCE
 
         NITRO_API.logout()
 
