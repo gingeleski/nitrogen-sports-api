@@ -1,3 +1,4 @@
+import datetime
 import json
 from nitrogen import NitrogenApi
 import time
@@ -12,11 +13,22 @@ NITROGEN_PASSWORD = 'Thr0wAway1'
 
 # Betting system parameters
 RETRY_WAIT_TIME = 20 * MINUTES_TO_SECONDS
-BETTING_UNIT = 0.002
+BETTING_UNIT = 0.001
 MIN_ODDS = 2.85
 MAX_ODDS = 3.45
 MAX_BET_TIER = 13
 BANKROLL_GOAL = None  # infinity
+
+# TODO improve logging, write out to file?
+def log(msg):
+    """
+    Log given message with timestamp
+
+    Args:
+        msg (str): Message to log
+    """
+    print('{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()), end=' - ')
+    print(msg)
 
 def find_next_bet(games_json):
     """
@@ -138,24 +150,27 @@ if __name__ == '__main__':
 
             # add bet for the indicated event and period
             res = NITRO_API.add_bet(next_bet['event_id'], next_bet['period_id'], 'moneyline_draw')
-            bet_id = res['data'][0]['bet'][0]['bet_id']
-            time.sleep(1)
+            if 'data' in res:
+                bet_id = res['data'][0]['bet'][0]['bet_id']
+                time.sleep(1)
 
-            # adjust risk to appropriate amount
-            current_bet = get_bet_amount(current_bet_tier)
-            NITRO_API.adjust_risk(bet_id, str(current_bet))
-            time.sleep(1)
+                # adjust risk to appropriate amount
+                current_bet = get_bet_amount(current_bet_tier)
+                NITRO_API.adjust_risk(bet_id, str(current_bet))
+                time.sleep(1)
 
-            NITRO_API.place_betslip()
-            time.sleep(1)
+                NITRO_API.place_betslip()
+                time.sleep(1)
 
-            NITRO_API.confirm_betslip()
-            time.sleep(1)
+                NITRO_API.confirm_betslip()
+                time.sleep(1)
 
-            # update last known balance since we've spent money
-            TRANSACTION_DUMP = NITRO_API.get_transactions()
-            last_balance = TRANSACTION_DUMP['transactionData']['balance']
-            time.sleep(1)
+                bet_in_progress = True
+
+                # update last known balance since we've spent money
+                TRANSACTION_DUMP = NITRO_API.get_transactions()
+                last_balance = TRANSACTION_DUMP['transactionData']['balance']
+                time.sleep(1)
 
         else:
             NITRO_API = NitrogenApi()
