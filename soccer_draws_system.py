@@ -7,7 +7,7 @@ import time
 
 
 # Global constants
-MINUTES_TO_SECONDS = 3600
+MINUTES_TO_SECONDS = 60
 
 # Nitrogen credentials
 NITROGEN_USERNAME = 'flot989'
