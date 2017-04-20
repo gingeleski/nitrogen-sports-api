@@ -168,7 +168,6 @@ if __name__ == '__main__':
     log('Starting Nitrogen soccer draws betting system.')
 
     games_json = None
-    bet_in_progress = False
     current_bet_tier = 1
 
     NITRO_API = NitrogenApi()
@@ -178,6 +177,13 @@ if __name__ == '__main__':
     STARTING_BALANCE = transaction_dump['transactionData']['balance']
     log('Starting account balance is ' + str(STARTING_BALANCE) + ' BTC.')
     time.sleep(1)
+
+    bet_in_progress = False
+    if float(transaction_dump['transactionData']['inplay']) > 0.0:
+        log('Found there is already a bet in progress.')
+        bet_in_progress = True
+    else:
+        log('Using default setting of no bet in progress ("clean slate").')
 
     NITRO_API = logout(NITRO_API)
     time.sleep(1)
