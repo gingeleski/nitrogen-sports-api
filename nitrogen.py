@@ -53,6 +53,8 @@ class NitrogenApi():
         req = self.session.post(login_url, data=payload, verify=False)
         if req.status_code == requests.codes.ok:
             self.authenticated = True
+        else:
+            raise RuntimeError('Response to #login not OK')
 
     def logout(self):
         """
