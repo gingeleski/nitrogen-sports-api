@@ -1,10 +1,9 @@
 # Nitrogen Sports API
-Unofficial API for Nitrogen Sports. Automates common interactions with the site using Selenium.
+Unofficial API for Nitrogen Sports.
 
 ## Setup
-These instructions are for Windows Powershell. There will be some differences for OS X / MacOS, like in activating the virtual environment and using the web driver.
+These instructions are for Windows Powershell. There will be some differences for OS X / MacOS, like in activating the virtual environment.
 
-Before the scraper will work correctly, you'll need to put the [Chromium web driver](https://sites.google.com/a/chromium.org/chromedriver/) (chromedriver.exe) inside of the *chromedriver* directory.
 ```
 # Get into a new virtualenv
 virtualenv venv
