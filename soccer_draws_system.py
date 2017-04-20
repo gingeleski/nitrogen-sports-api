@@ -58,10 +58,12 @@ def find_next_bet(games_json):
                     if 'drawPrice' in line and line['drawPrice'] is not None:
                         draw_price = float(line['drawPrice'])
                         if draw_price >= MIN_ODDS and draw_price <= MAX_ODDS:
+                            log('Found bet at odds ' + str(draw_price) + ', event ID ' + event_id + ', period ID ' + period_id + '.')
                             return {'event_id': event_id,
                                     'period_id': period_id,
                                     'bet_type': 'moneyline_draw',
                                     'bet_id': '-1'}
+    log('Did not find suitable next bet.')
     return None
 
 def get_bet_amount(tier_num):
@@ -112,6 +114,8 @@ def continue_betting():
 
 if __name__ == '__main__':
 
+    log('Starting Nitrogen soccer draws betting system.')
+
     games_json = None
     bet_in_progress = False
     current_bet_tier = 1
@@ -122,6 +126,7 @@ if __name__ == '__main__':
 
     transaction_dump = NITRO_API.get_transactions()
     STARTING_BALANCE = transaction_dump['transactionData']['balance']
+    log('Starting account balance is ' + str(STARTING_BALANCE) + ' BTC.')
     time.sleep(1)
 
     NITRO_API.logout()
@@ -185,14 +190,18 @@ if __name__ == '__main__':
                 if BALANCE > last_balance:
                     # win
                     current_bet_tier = 1
+                    log('Detected WIN, reset bet tier to 1.')
                 elif BALANCE < last_balance:
                     # loss
                     current_bet_tier += 1
+                    log('Detected LOSS, progress bet tier to ' + str(current_bet_tier) + '.')
                 last_balance = BALANCE
 
         NITRO_API.logout()
 
         if continue_betting() is False:
+            log('continue_betting is false, betting system is ending.')
             break
         else:
+            log('Sleeping for ' + str(RETRY_WAIT_TIME) + ' seconds.')
             time.sleep(RETRY_WAIT_TIME)
