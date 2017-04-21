@@ -1,10 +1,14 @@
 import cfscrape
+
 import json
-import requests
 import time
 
-# Suppress HTTPS warnings
+import requests
+from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from requests.packages.urllib3.util.retry import Retry
+
+# Suppress HTTPS warnings
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 BASE_URL = 'https://nitrogensports.eu/'
@@ -34,6 +38,8 @@ class NitrogenApi():
         """
 
         self.session = cfscrape.CloudflareScraper()
+        retries = Retry(total=5, backoff_factor=1)
+        self.session.mount('https://', HTTPAdapter(max_retries=retries))
         self.pass_cloudflare()
 
     def pass_cloudflare(self):
