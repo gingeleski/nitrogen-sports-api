@@ -15,7 +15,8 @@ NITROGEN_PASSWORD = 'Thr0wAway1'
 
 # Betting system parameters
 LOG_FILENAME = 'soccer_draws.log'
-RETRY_WAIT_TIME = 20 * MINUTES_TO_SECONDS
+RETRY_WAIT_TIME = 30 * MINUTES_TO_SECONDS
+FIND_BET_RETRY_TIME = 90 * MINUTES_TO_SECONDS
 BUFFER_TIME_BEFORE_GAMES = 5 * MINUTES_TO_SECONDS
 BETTING_UNIT = 0.001
 MIN_ODDS = 2.85
@@ -148,7 +149,7 @@ def login(NITRO_API):
     Login wrapper with logging
     """
 
-    log('Started new session, logging in as ' + NITROGEN_USERNAME + ' ...')
+    log('Logging in as ' + NITROGEN_USERNAME + ' ...')
     NITRO_API.login(NITROGEN_USERNAME, NITROGEN_PASSWORD)
     time.sleep(1)
     return NITRO_API
@@ -203,8 +204,8 @@ if __name__ == '__main__':
 
                 if next_bet is None:
                     NITRO_API = logout(NITRO_API)
-                    log('Sleeping for ' + RETRY_WAIT_TIME + ' seconds...')
-                    time.sleep(RETRY_WAIT_TIME)
+                    log('Sleeping for ' + str(FIND_BET_RETRY_TIME) + ' seconds...')
+                    time.sleep(FIND_BET_RETRY_TIME)
                 else:
                     break
 
@@ -264,5 +265,6 @@ if __name__ == '__main__':
             log('continue_betting is false, betting system is ending.')
             break
         else:
+            # TODO in most cases we'll know when the bet was placed, appropriate the wait to that
             log('Sleeping for ' + str(RETRY_WAIT_TIME) + ' seconds.')
             time.sleep(RETRY_WAIT_TIME)
