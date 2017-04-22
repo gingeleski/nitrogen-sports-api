@@ -5,266 +5,281 @@ from nitrogen import NitrogenApi
 import os
 import time
 
-
-# Global constants
+# global constants
 MINUTES_TO_SECONDS = 60
 
-# Nitrogen credentials
-NITROGEN_USERNAME = 'flot989'
-NITROGEN_PASSWORD = 'Thr0wAway1'
-
-# Betting system parameters
-LOG_FILENAME = 'soccer_draws.log'
-RETRY_WAIT_TIME = 30 * MINUTES_TO_SECONDS
-FIND_BET_RETRY_TIME = 90 * MINUTES_TO_SECONDS
-BUFFER_TIME_BEFORE_GAMES = 5 * MINUTES_TO_SECONDS
-BETTING_UNIT = 0.001
-MIN_ODDS = 2.85
-MAX_ODDS = 3.45
-MAX_BET_TIER = 13
-BANKROLL_GOAL = None  # infinity
-
 logging.basicConfig(level=logging.INFO)
-logging_initialized = False
 
-
-def init_logging():
+class SoccerDrawsSystem():
     """
-    Initial setup of logger
+    Betting system based on soccer match draws
     """
 
-    try:
-        os.remove(LOG_FILENAME)
-    except OSError:
-        pass
+    # betting system parameters
+    LOG_FILENAME = 'soccer_draws.log'
+    DEFAULT_RETRY_TIME = 30 * MINUTES_TO_SECONDS
+    FIND_BET_RETRY_TIME = 90 * MINUTES_TO_SECONDS
+    BUFFER_TIME_BEFORE_GAMES = 5 * MINUTES_TO_SECONDS
+    BETTING_UNIT = 0.001
+    MIN_ODDS = 2.85
+    MAX_ODDS = 3.45
+    MAX_BET_TIER = 13
+    BANKROLL_GOAL = None  # infinity
 
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
-    handler = logging.FileHandler(LOG_FILENAME)
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    def __init__(self, nitrogen_user, nitrogen_pass):
 
-def log(msg):
-    """
-    Log given message with timestamp
+        # set Nitrogen credentials
+        self.nitrogen_username = nitrogen_user
+        self.nitrogen_password = nitrogen_pass
 
-    Args:
-        msg (str): Message to log
-    """
+        self.initialize_logging()
 
-    if logging_initialized is False:
-        init_logging()
+        # declare these ahead of later usage
+        self.api = None
+        self.game_cache = None
+        self.current_bet_tier = 1
+        self.starting_balance = -1.0
+        self.last_balance = -1.0
+        self.bet_in_progress = False
 
-    logger = logging.getLogger(__name__)
-    logger.info(msg)
+    def initialize_logging(self):
+        """
+        Initialize logging
+        """
 
-def find_next_bet(games_json):
-    """
-    Find next bet to place
+        try:
+            os.remove(self.LOG_FILENAME)
+        except OSError:
+            pass
 
-    Args:
-        games_json (dict): JSON response from #get_upcoming_games
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.INFO)
+        handler = logging.FileHandler(self.LOG_FILENAME)
+        handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(message)s')
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
 
-    Returns:
-        None: Indicates there is no suitable bet available yet
+    def log(self, msg):
+        """
+        Log given message with timestamp
 
-        Bet object: Info on a suitable bet to do next
-            {
-                event_id (str),
-                period_id (str),
-                bet_type (str),
-                bet_id (str)
-            }
-    """
+        Args:
+            msg (str): Message to log
+        """
 
-    MIN_CUTOFF = int(time.time()) + BUFFER_TIME_BEFORE_GAMES
+        self.logger.info(msg)
 
-    for event in games_json['data']:
-        event_id = event['event_id']
-        for period in event['period']:
-            period_id = period['period_id']
-            if 'moneyLine' in period and period['moneyLine'] is not None:
-                if 'cutoffDateTime' in period and int(period['cutoffDateTime']) >= MIN_CUTOFF:
-                    for line in period['moneyLine']:
-                        if 'drawPrice' in line and line['drawPrice'] is not None:
-                            draw_price = float(line['drawPrice'])
-                            if draw_price >= MIN_ODDS and draw_price <= MAX_ODDS:
-                                log('Found bet at odds ' + str(draw_price) + ', event ID ' + event_id + ', period ID ' + period_id + '.')
-                                return {'event_id': event_id,
-                                        'period_id': period_id,
-                                        'bet_type': 'moneyline_draw',
-                                        'bet_id': '-1'}
-    log('Did not find suitable next bet.')
-    return None
+    def start(self):
+        """
+        Start betting system
+        """
 
-def get_bet_amount(tier_num):
-    """
-    Get appropriate bet amount for given tier
+        self.log('Starting Nitrogen soccer draws betting system.')
 
-    Args:
-        tier_num (int)
+        self.api = NitrogenApi()
+        self.login()
 
-    Returns:
-        (float) Appropriate bet amount in Bitcoin
-    """
+        transaction_dump = self.api.get_transactions()
+        self.starting_balance = transaction_dump['transactionData']['balance']
+        self.log('Starting account balance is ' + str(self.starting_balance) + ' BTC.')
+        time.sleep(1)
 
-    bet_amount = 1 * BETTING_UNIT
-    if tier_num >= 2:
-        bet_amount *= 2.0
-        if tier_num >= 3:
+        if float(transaction_dump['transactionData']['inplay']) > 0.0:
+            self.log('Found there is already a bet in progress.')
+            self.bet_in_progress = True
+        else:
+            self.log('Using default setting of no bet in progress.')
+
+        self.api.logout()
+        time.sleep(1)
+
+        self.last_balance = self.starting_balance
+
+        self.main_loop()
+
+    def main_loop(self):
+        """
+        Main loop
+        """
+
+        while True:
+
+            if self.bet_in_progress is False:
+
+                while True:
+                    self.login()
+                    self.games_cache = self.api.find_upcoming_games()
+                    time.sleep(1)
+
+                    next_bet = self.find_next_bet()
+
+                    if next_bet is None:
+                        self.logout()
+                        self.log('Sleeping for ' + str(self.FIND_BET_RETRY_TIME) + ' seconds...')
+                        time.sleep(self.FIND_BET_RETRY_TIME)
+                    else:
+                        break
+
+                # add bet for the indicated event and period
+                self.log('Adding bet...')
+                r = self.api.add_bet(next_bet['event_id'], next_bet['period_id'], 'moneyline_draw')
+                if 'data' in r:
+                    bet_id = r['data'][0]['bet'][0]['bet_id']
+                    self.log('Success, bet ID is ' + str(bet_id) + '.')
+                    time.sleep(1)
+
+                    # adjust risk to appropriate amount
+                    current_bet = self.get_bet_amount()
+                    self.log('Adjusting risk to ' + str(current_bet) + ' BTC...')
+                    self.api.adjust_risk(bet_id, str(current_bet))
+                    time.sleep(1)
+
+                    self.log('Placing betslip...')
+                    self.api.place_betslip()
+                    time.sleep(1)
+
+                    self.log('Confirming betslip...')
+                    self.api.confirm_betslip()
+                    time.sleep(1)
+
+                    self.bet_in_progress = True
+                    self.log('Bet in progress.')
+
+                    # update last known balance since we've spent money
+                    TRANSACTION_DUMP = self.api.get_transactions()
+                    self.last_balance = TRANSACTION_DUMP['transactionData']['balance']
+                    self.log('Available account balance is now ' + str(self.last_balance) + ' BTC.')
+                    time.sleep(1)
+                else:
+                    self.log('** Something went wrong adding bet. **')
+                    raise RuntimeError('Something went wrong adding bet.')
+
+            else:
+                self.login()
+                TRANSACTION_DUMP = self.api.get_transactions()
+                BALANCE = TRANSACTION_DUMP['transactionData']['balance']
+                INPLAY = TRANSACTION_DUMP['transactionData']['inplay']
+
+                if INPLAY == 0.0:
+                    self.bet_in_progress = False
+                    if BALANCE > self.last_balance:
+                        current_bet_tier = 1
+                        self.log('Detected WIN, reset bet tier to 1.')
+                    elif BALANCE < self.last_balance:
+                        current_bet_tier += 1
+                        self.log('Detected LOSS, progress bet tier to ' + str(current_bet_tier) + '.')
+                    self.last_balance = BALANCE
+
+            self.logout()
+
+            if self.should_continue_betting() is False:
+                self.log('continue_betting is false, betting system is ending.')
+                break
+            else:
+                # TODO in most cases we'll know when the bet was placed, appropriate the wait to that
+                self.log('Sleeping for ' + str(self.DEFAULT_RETRY_TIME) + ' seconds.')
+                time.sleep(self.DEFAULT_RETRY_TIME)
+
+    def get_bet_amount(self):
+        """
+        Get appropriate bet amount for current tier
+
+        Returns:
+            (float) Appropriate bet amount in Bitcoin
+        """
+
+        bet_amount = 1 * self.BETTING_UNIT
+        if self.current_bet_tier >= 2:
             bet_amount *= 2.0
-            if tier_num >= 4:
-                bet_amount *= 1.5
-                if tier_num >= 5:
+            if self.current_bet_tier >= 3:
+                bet_amount *= 2.0
+                if self.current_bet_tier >= 4:
                     bet_amount *= 1.5
-                    if tier_num >= 6:
+                    if self.current_bet_tier >= 5:
                         bet_amount *= 1.5
-                        if tier_num >= 7:
+                        if self.current_bet_tier >= 6:
                             bet_amount *= 1.5
-                            if tier_num >= 8:
+                            if self.current_bet_tier >= 7:
                                 bet_amount *= 1.5
-                                if tier_num >= 9:
+                                if self.current_bet_tier >= 8:
                                     bet_amount *= 1.5
-                                    if tier_num >= 10:
+                                    if self.current_bet_tier >= 9:
                                         bet_amount *= 1.5
-                                        if tier_num >= 11:
+                                        if self.current_bet_tier >= 10:
                                             bet_amount *= 1.5
-                                            if tier_num >= 12:
+                                            if self.current_bet_tier >= 11:
                                                 bet_amount *= 1.5
-                                                if tier_num >= 13:
+                                                if self.current_bet_tier >= 12:
                                                     bet_amount *= 1.5
-    return bet_amount
+                                                    if self.current_bet_tier >= 13:
+                                                        bet_amount *= 1.5
+        return bet_amount
 
-def continue_betting():
-    """
-    Indicates whether betting should continue
-    """
+    def find_next_bet(self):
+        """
+        Find next bet to place
 
-    return True
+        Returns:
+            None: Indicates there is no suitable bet available yet
 
-def login(NITRO_API):
-    """
-    Login wrapper with logging
-    """
+            Bet object: Info on a suitable bet to do next
+                {
+                    event_id (str),
+                    period_id (str),
+                    bet_type (str),
+                    bet_id (str)
+                }
+        """
 
-    log('Logging in as ' + NITROGEN_USERNAME + ' ...')
-    NITRO_API.login(NITROGEN_USERNAME, NITROGEN_PASSWORD)
-    time.sleep(1)
-    return NITRO_API
+        MIN_CUTOFF = int(time.time()) + self.BUFFER_TIME_BEFORE_GAMES
 
-def logout(NITRO_API):
-    """
-    Logout wrapper with logging
-    """
+        for event in self.games_cache['data']:
+            event_id = event['event_id']
+            for period in event['period']:
+                period_id = period['period_id']
+                if 'moneyLine' in period and period['moneyLine'] is not None:
+                    if 'cutoffDateTime' in period and int(period['cutoffDateTime']) >= MIN_CUTOFF:
+                        for line in period['moneyLine']:
+                            if 'drawPrice' in line and line['drawPrice'] is not None:
+                                draw_price = float(line['drawPrice'])
+                                if draw_price >= self.MIN_ODDS and draw_price <= self.MAX_ODDS:
+                                    self.log('Found bet at odds ' + str(draw_price) + ', event ID ' + event_id + ', period ID ' + period_id + '.')
+                                    return {'event_id': event_id,
+                                            'period_id': period_id,
+                                            'bet_type': 'moneyline_draw',
+                                            'bet_id': '-1'}
+        self.log('Did not find suitable next bet.')
+        return None
 
-    log('Logging out.')
-    NITRO_API.logout()
-    return NITRO_API
+    def login(self):
+        """
+        Login
+        """
 
+        self.log('Logging in as ' + self.nitrogen_username + '...')
+        self.api.login(self.nitrogen_username, self.nitrogen_password)
+        time.sleep(1)
+
+    def logout(self):
+        """
+        Logout
+        """
+
+        self.log('Logging out.')
+        self.api.logout()
+
+    def should_continue_betting(self):
+        """
+        Indicates whether betting should continue
+
+        Returns:
+            (bool)
+        """
+
+        return True
 
 if __name__ == '__main__':
 
-    log('Starting Nitrogen soccer draws betting system.')
-
-    games_json = None
-    current_bet_tier = 1
-
-    NITRO_API = NitrogenApi()
-    NITRO_API = login(NITRO_API)
-
-    transaction_dump = NITRO_API.get_transactions()
-    STARTING_BALANCE = transaction_dump['transactionData']['balance']
-    log('Starting account balance is ' + str(STARTING_BALANCE) + ' BTC.')
-    time.sleep(1)
-
-    bet_in_progress = False
-    if float(transaction_dump['transactionData']['inplay']) > 0.0:
-        log('Found there is already a bet in progress.')
-        bet_in_progress = True
-    else:
-        log('Using default setting of no bet in progress ("clean slate").')
-
-    NITRO_API = logout(NITRO_API)
-    time.sleep(1)
-
-    last_balance = STARTING_BALANCE
-
-    while True:
-
-        if bet_in_progress is False:
-
-            while True:
-                NITRO_API = login(NITRO_API)
-                games_json = NITRO_API.find_upcoming_games()
-                time.sleep(1)
-
-                next_bet = find_next_bet(games_json)
-
-                if next_bet is None:
-                    NITRO_API = logout(NITRO_API)
-                    log('Sleeping for ' + str(FIND_BET_RETRY_TIME) + ' seconds...')
-                    time.sleep(FIND_BET_RETRY_TIME)
-                else:
-                    break
-
-            # add bet for the indicated event and period
-            log('Adding bet...')
-            res = NITRO_API.add_bet(next_bet['event_id'], next_bet['period_id'], 'moneyline_draw')
-            if 'data' in res:
-                bet_id = res['data'][0]['bet'][0]['bet_id']
-                log('Success, bet ID is ' + str(bet_id) + '.')
-                time.sleep(1)
-
-                # adjust risk to appropriate amount
-                current_bet = get_bet_amount(current_bet_tier)
-                log('Adjusting risk to ' + str(current_bet) + ' BTC...')
-                NITRO_API.adjust_risk(bet_id, str(current_bet))
-                time.sleep(1)
-
-                log('Placing betslip...')
-                NITRO_API.place_betslip()
-                time.sleep(1)
-
-                log('Confirming betslip...')
-                NITRO_API.confirm_betslip()
-                time.sleep(1)
-
-                bet_in_progress = True
-                log('Bet in progress.')
-
-                # update last known balance since we've spent money
-                TRANSACTION_DUMP = NITRO_API.get_transactions()
-                last_balance = TRANSACTION_DUMP['transactionData']['balance']
-                log('Available account balance is now ' + str(last_balance) + ' BTC.')
-                time.sleep(1)
-            else:
-                log('** Something went wrong adding bet. **')
-                raise RuntimeError('Something went wrong adding bet.')
-
-        else:
-            NITRO_API = login(NITRO_API)
-            TRANSACTION_DUMP = NITRO_API.get_transactions()
-            BALANCE = TRANSACTION_DUMP['transactionData']['balance']
-            INPLAY = TRANSACTION_DUMP['transactionData']['inplay']
-
-            if INPLAY == 0.0:
-                bet_in_progress = False
-                if BALANCE > last_balance:
-                    current_bet_tier = 1
-                    log('Detected WIN, reset bet tier to 1.')
-                elif BALANCE < last_balance:
-                    current_bet_tier += 1
-                    log('Detected LOSS, progress bet tier to ' + str(current_bet_tier) + '.')
-                last_balance = BALANCE
-
-        NITRO_API = logout(NITRO_API)
-
-        if continue_betting() is False:
-            log('continue_betting is false, betting system is ending.')
-            break
-        else:
-            # TODO in most cases we'll know when the bet was placed, appropriate the wait to that
-            log('Sleeping for ' + str(RETRY_WAIT_TIME) + ' seconds.')
-            time.sleep(RETRY_WAIT_TIME)
+    BET_SYSTEM = SoccerDrawsSystem('flot989', 'Thr0wAway1')
+    BET_SYSTEM.start()
