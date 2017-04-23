@@ -190,30 +190,13 @@ class SoccerDrawsSystem():
         """
 
         bet_amount = 1 * self.BETTING_UNIT
-        if self.current_bet_tier >= 2:
+        working_bet_tier = self.current_bet_tier
+        while working_bet_tier >= 4:
+            bet_amount *= 1.5
+            working_bet_tier -= 1
+        while working_bet_tier >= 2:
             bet_amount *= 2.0
-            if self.current_bet_tier >= 3:
-                bet_amount *= 2.0
-                if self.current_bet_tier >= 4:
-                    bet_amount *= 1.5
-                    if self.current_bet_tier >= 5:
-                        bet_amount *= 1.5
-                        if self.current_bet_tier >= 6:
-                            bet_amount *= 1.5
-                            if self.current_bet_tier >= 7:
-                                bet_amount *= 1.5
-                                if self.current_bet_tier >= 8:
-                                    bet_amount *= 1.5
-                                    if self.current_bet_tier >= 9:
-                                        bet_amount *= 1.5
-                                        if self.current_bet_tier >= 10:
-                                            bet_amount *= 1.5
-                                            if self.current_bet_tier >= 11:
-                                                bet_amount *= 1.5
-                                                if self.current_bet_tier >= 12:
-                                                    bet_amount *= 1.5
-                                                    if self.current_bet_tier >= 13:
-                                                        bet_amount *= 1.5
+            working_bet_tier -= 1
         return bet_amount
 
     def find_next_bet(self):
