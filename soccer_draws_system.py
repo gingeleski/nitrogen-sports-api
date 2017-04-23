@@ -37,8 +37,9 @@ class SoccerDrawsSystem():
         self.game_cache = None
         self.current_bet_tier = 1
         self.starting_balance = -1.0
-        self.last_balance = -1.0
+        self.last_known_balance = -1.0
         self.bet_in_progress = False
+        self.next_bet = None
 
     def initialize_logging(self):
         """
@@ -92,7 +93,7 @@ class SoccerDrawsSystem():
         self.api.logout()
         time.sleep(1)
 
-        self.last_balance = self.starting_balance
+        self.last_known_balance = self.starting_balance
 
         self.main_loop()
 
@@ -110,9 +111,9 @@ class SoccerDrawsSystem():
                     self.games_cache = self.api.find_upcoming_games()
                     time.sleep(1)
 
-                    next_bet = self.find_next_bet()
+                    self.find_next_bet()
 
-                    if next_bet is None:
+                    if self.next_bet is None:
                         self.logout()
                         self.log('Sleeping for ' + str(self.FIND_BET_RETRY_TIME) + ' seconds...')
                         time.sleep(self.FIND_BET_RETRY_TIME)
@@ -121,9 +122,10 @@ class SoccerDrawsSystem():
 
                 # add bet for the indicated event and period
                 self.log('Adding bet...')
-                r = self.api.add_bet(next_bet['event_id'], next_bet['period_id'], 'moneyline_draw')
-                if 'data' in r:
-                    bet_id = r['data'][0]['bet'][0]['bet_id']
+                add_bet_response = self.api.add_bet(self.next_bet['event_id'], self.next_bet['period_id'], 'moneyline_draw')
+                self.next_bet = None
+                if 'data' in add_bet_response:
+                    bet_id = add_bet_response['data'][0]['bet'][0]['bet_id']
                     self.log('Success, bet ID is ' + str(bet_id) + '.')
                     time.sleep(1)
 
@@ -145,9 +147,9 @@ class SoccerDrawsSystem():
                     self.log('Bet in progress.')
 
                     # update last known balance since we've spent money
-                    TRANSACTION_DUMP = self.api.get_transactions()
-                    self.last_balance = TRANSACTION_DUMP['transactionData']['balance']
-                    self.log('Available account balance is now ' + str(self.last_balance) + ' BTC.')
+                    transaction_dump = self.api.get_transactions()
+                    self.last_known_balance = transaction_dump['transactionData']['balance']
+                    self.log('Available account balance is now ' + str(self.last_known_balance) + ' BTC.')
                     time.sleep(1)
                 else:
                     self.log('** Something went wrong adding bet. **')
@@ -155,24 +157,24 @@ class SoccerDrawsSystem():
 
             else:
                 self.login()
-                TRANSACTION_DUMP = self.api.get_transactions()
-                BALANCE = TRANSACTION_DUMP['transactionData']['balance']
-                INPLAY = TRANSACTION_DUMP['transactionData']['inplay']
+                transaction_dump = self.api.get_transactions()
+                current_balance = transaction_dump['transactionData']['balance']
+                current_money_inplay = transaction_dump['transactionData']['inplay']
 
-                if INPLAY == 0.0:
+                if current_money_inplay == 0.0:
                     self.bet_in_progress = False
-                    if BALANCE > self.last_balance:
+                    if current_balance > self.last_known_balance:
                         current_bet_tier = 1
                         self.log('Detected WIN, reset bet tier to 1.')
-                    elif BALANCE < self.last_balance:
+                    elif current_balance < self.last_known_balance:
                         current_bet_tier += 1
                         self.log('Detected LOSS, progress bet tier to ' + str(current_bet_tier) + '.')
-                    self.last_balance = BALANCE
+                    self.last_known_balance = current_balance
 
             self.logout()
 
             if self.should_continue_betting() is False:
-                self.log('continue_betting is false, betting system is ending.')
+                self.log('Conditions met to cease betting, ending...')
                 break
             else:
                 # TODO in most cases we'll know when the bet was placed, appropriate the wait to that
@@ -217,17 +219,6 @@ class SoccerDrawsSystem():
     def find_next_bet(self):
         """
         Find next bet to place
-
-        Returns:
-            None: Indicates there is no suitable bet available yet
-
-            Bet object: Info on a suitable bet to do next
-                {
-                    event_id (str),
-                    period_id (str),
-                    bet_type (str),
-                    bet_id (str)
-                }
         """
 
         MIN_CUTOFF = int(time.time()) + self.BUFFER_TIME_BEFORE_GAMES
@@ -243,12 +234,13 @@ class SoccerDrawsSystem():
                                 draw_price = float(line['drawPrice'])
                                 if draw_price >= self.MIN_ODDS and draw_price <= self.MAX_ODDS:
                                     self.log('Found bet at odds ' + str(draw_price) + ', event ID ' + event_id + ', period ID ' + period_id + '.')
-                                    return {'event_id': event_id,
-                                            'period_id': period_id,
-                                            'bet_type': 'moneyline_draw',
-                                            'bet_id': '-1'}
+                                    self.next_bet = {'event_id': event_id,
+                                                     'period_id': period_id,
+                                                     'bet_type': 'moneyline_draw',
+                                                     'bet_id': '-1'}
+                                    return
+        # if we get here we didn't find a suitable bet
         self.log('Did not find suitable next bet.')
-        return None
 
     def login(self):
         """
