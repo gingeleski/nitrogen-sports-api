@@ -160,6 +160,10 @@ class SoccerDrawsSystem():
                 transaction_dump = self.api.get_transactions()
                 current_balance = transaction_dump['transactionData']['balance']
                 current_money_inplay = transaction_dump['transactionData']['inplay']
+                
+                self.log('Last known balance: ' + str(self.last_known_balance) + ' BTC')
+                self.log('Current balance: ' + str(current_balance) + ' BTC')
+                self.log('Current inplay: ' + str(current_money_inplay) + ' BTC')
 
                 if current_money_inplay == 0.0:
                     self.bet_in_progress = False
