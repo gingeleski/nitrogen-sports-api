@@ -172,7 +172,8 @@ class SoccerDrawsSystem():
                     if current_balance > self.last_known_balance:
                         self.current_bet_tier = 1
                         self.log('Detected WIN, reset bet tier to 1.')
-                    elif current_balance < self.last_known_balance:
+                    # TODO handle 'push' scenario
+                    else:
                         self.current_bet_tier += 1
                         self.log('Detected LOSS, progress bet tier to ' + str(self.current_bet_tier) + '.')
                     self.last_known_balance = current_balance
