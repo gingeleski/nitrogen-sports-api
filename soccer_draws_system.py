@@ -108,6 +108,10 @@ class SoccerDrawsSystem():
 
             if self.bet_in_progress is False:
 
+                if self.last_known_balance < self.get_bet_amount():
+                    self.log('** Insufficient funds to proceed. **')
+                    raise RuntimeError('Something went wrong adding bet.')
+
                 while True:
                     self.login()
                     self.games_cache = self.api.find_upcoming_games()
