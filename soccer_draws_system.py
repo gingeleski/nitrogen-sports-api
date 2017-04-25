@@ -35,7 +35,7 @@ class SoccerDrawsSystem():
         # declare these ahead of later usage
         self.api = None
         self.game_cache = None
-        self.current_bet_tier = 1
+        self.current_bet_tier = 6
         self.starting_balance = -1.0
         self.last_known_balance = -1.0
         self.bet_in_progress = False
@@ -110,7 +110,7 @@ class SoccerDrawsSystem():
 
                 if self.last_known_balance < self.get_bet_amount():
                     self.log('** Insufficient funds to proceed. **')
-                    raise RuntimeError('Something went wrong adding bet.')
+                    raise RuntimeError('Insufficient funds to proceed.')
 
                 while True:
                     self.login()
