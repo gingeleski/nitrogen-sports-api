@@ -35,8 +35,10 @@ class NitrogenApi():
         """
 
         self.session = cfscrape.CloudflareScraper()
+
         retries = Retry(total=5, backoff_factor=1)
         self.session.mount('https://', HTTPAdapter(max_retries=retries))
+
         self.pass_cloudflare()
 
     def pass_cloudflare(self):
@@ -51,25 +53,23 @@ class NitrogenApi():
         Login
 
         Returns:
-            (tuple) - [0] status (str), [1] balance (float), [2] inplay (float)
+            (tuple) - [0] status (bool), [1] balance (float), [2] inplay (float)
         """
 
         login_url = BASE_URL + 'php/login/login.php'
         payload = {'username': username, 'password': password, 'otp': '', 'captcha_code': ''}
 
-        status = 'PENDING'
         req = self.session.post(login_url, data=payload, verify=False)
-        if req.status_code == requests.codes.ok:
-            status = 'SUCCESS'
-            self.authenticated = True
-        else:
-            status = 'NOT OK'
-            return status, None, None
+
+        if req.status_code != requests.codes.ok:
+            return False, None, None
+
+        self.authenticated = True
 
         balance = req.json()['balance']
         inplay = req.json()['inplay']
 
-        return status, balance, inplay
+        return True, balance, inplay
 
     def logout(self):
         """
@@ -81,15 +81,14 @@ class NitrogenApi():
 
         logout_url = BASE_URL + 'php/login/logout.php'
 
-        status = 'PENDING'
         req = self.session.post(logout_url, verify=False)
-        if req.status_code != requests.codes.ok:
-            status = 'NOT OK'
-        else:
-            status = 'SUCCESS'
-            self.authenticated = False
 
-        return status
+        if req.status_code != requests.codes.ok:
+            return False
+
+        self.authenticated = False
+
+        return True
 
     def get_transactions(self):
         """
