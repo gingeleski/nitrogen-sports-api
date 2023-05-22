@@ -15,7 +15,7 @@ setup(name='nitrogen-sports-api',
         'packaging==16.8',
         'PyExecJS==1.4.0',
         'pyparsing==2.2.0',
-        'requests==2.20.0',
+        'requests==2.31.0',
         'six==1.10.0'
     ]
 )
